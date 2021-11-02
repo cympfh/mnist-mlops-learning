@@ -1,22 +1,21 @@
-import numpy as np
-from fastapi import FastAPI
-from fastapi import BackgroundTasks
+import logging
 from urllib.parse import urlparse
 
 import mlflow
+import numpy
+from fastapi import BackgroundTasks, FastAPI
 from mlflow.tracking import MlflowClient
-from ml.train import Trainer
-from ml.models import LinearModel
+
+from backend.models import DeleteApiData, PredictApiData, TrainApiData
 from ml.data import load_mnist_data
+from ml.models import LinearModel
+from ml.train import Trainer
 from ml.utils import set_device
-from backend.models import DeleteApiData, TrainApiData, PredictApiData
 
-
-#mlflow.set_tracking_uri('sqlite:///backend.db')
 mlflow.set_tracking_uri("sqlite:///db/backend.db")
+mlflowclient = MlflowClient(mlflow.get_tracking_uri(), mlflow.get_registry_uri())
 app = FastAPI()
-mlflowclient = MlflowClient(
-    mlflow.get_tracking_uri(), mlflow.get_registry_uri())
+logger = logging.getLogger("uvicorn")
 
 
 def train_model_task(model_name: str, hyperparams: dict, epochs: int):
@@ -30,46 +29,52 @@ def train_model_task(model_name: str, hyperparams: dict, epochs: int):
     mlflow.set_experiment("MNIST")
     with mlflow.start_run() as run:
         # Log hyperparameters
-        mlflow.log_params(hyperparams)
+        mlflow.log_params(hyperparams | {"epochs": epochs})
 
         # Prepare for training
-        print("Loading data...")
+        logger.info("Loading data...")
         train_dataloader, test_dataloader = load_mnist_data()
 
         # Train
-        print("Training model")
+        logger.info("Training model")
         model = LinearModel(hyperparams).to(device)
         trainer = Trainer(model, device=device)  # Default configs
         history = trainer.train(epochs, train_dataloader, test_dataloader)
 
-        print("Logging results")
         # Log in mlflow
+        logger.info("Logging results")
         for metric_name, metric_values in history.items():
             for metric_value in metric_values:
                 mlflow.log_metric(metric_name, metric_value)
 
         # Register model
         tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
-        print(f"{tracking_url_type_store=}")
+        logger.info(f"{tracking_url_type_store=}")
 
         # Model registry does not work with file store
         if tracking_url_type_store != "file":
             mlflow.pytorch.log_model(
-                model, "LinearModel", registered_model_name=model_name, conda_env=mlflow.pytorch.get_default_conda_env())
+                model,
+                "LinearModel",
+                registered_model_name=model_name,
+                conda_env=mlflow.pytorch.get_default_conda_env(),
+            )
         else:
-            mlflow.pytorch.log_model(
-                model, "LinearModel-MNIST", registered_model_name=model_name)
-        # Transition to production. We search for the last model with the name and we stage it to production
-        mv = mlflowclient.search_model_versions(
-            f"name='{model_name}'")[-1]  # Take last model version
+            mlflow.pytorch.log_model(model, "LinearModel-MNIST", registered_model_name=model_name)
+
+        # Take last model version
+        mv = mlflowclient.search_model_versions(f"name='{model_name}'")[-1]
         mlflowclient.transition_model_version_stage(
-            name=mv.name, version=mv.version, stage="production")
+            name=mv.name, version=mv.version, stage="production"
+        )
 
 
 @app.get("/")
 async def read_root():
-    return {"Tracking URI": mlflow.get_tracking_uri(),
-            "Registry URI": mlflow.get_registry_uri()}
+    return {
+        "Tracking URI": mlflow.get_tracking_uri(),
+        "Registry URI": mlflow.get_registry_uri(),
+    }
 
 
 @app.get("/models")
@@ -87,8 +92,7 @@ async def train_api(data: TrainApiData, background_tasks: BackgroundTasks):
     epochs = data.epochs
     model_name = data.model_name
 
-    background_tasks.add_task(
-        train_model_task, model_name, hyperparams, epochs)
+    background_tasks.add_task(train_model_task, model_name, hyperparams, epochs)
 
     return {"result": "Training task started"}
 
@@ -99,16 +103,14 @@ async def predict_api(data: PredictApiData):
     img = data.input_image
     model_name = data.model_name
     # Fetch the last model in production
-    model = mlflow.pyfunc.load_model(
-        model_uri=f"models:/{model_name}/Production"
-    )
+    model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/Production")
     # Preprocess the image
     # Flatten input, create a batch of one and normalize
-    img = np.array(img, dtype=np.float32).flatten()[np.newaxis, ...] / 255
+    img = numpy.array(img, dtype=numpy.float32).flatten()[numpy.newaxis, ...] / 255
     # Postprocess result
     pred = model.predict(img)
-    print(pred)
-    res = int(np.argmax(pred[0]))
+    logger.info(pred)
+    res = int(numpy.argmax(pred[0]))
     return {"result": res}
 
 
@@ -116,7 +118,7 @@ async def predict_api(data: PredictApiData):
 async def delete_model_api(data: DeleteApiData):
     model_name = data.model_name
     version = data.model_version
-    
+
     if version is None:
         # Delete all versions
         mlflowclient.delete_registered_model(name=model_name)
@@ -124,10 +126,8 @@ async def delete_model_api(data: DeleteApiData):
     elif isinstance(version, list):
         for v in version:
             mlflowclient.delete_model_version(name=model_name, version=v)
-        response = {
-            "result": f"Deleted versions {version} of model {model_name}"}
+        response = {"result": f"Deleted versions {version} of model {model_name}"}
     else:
         mlflowclient.delete_model_version(name=model_name, version=version)
-        response = {
-            "result": f"Deleted version {version} of model {model_name}"}
+        response = {"result": f"Deleted version {version} of model {model_name}"}
     return response

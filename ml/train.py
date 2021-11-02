@@ -9,7 +9,7 @@ class Trainer:
         if optimizer is not None:
             self.optimizer = optimizer
         else:
-            self.optimizer = torch.optim.Adam(model.parameters(), lr=.001)
+            self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
         self.criterion = torch.nn.CrossEntropyLoss() if criterion is None else criterion
 
@@ -33,8 +33,7 @@ class Trainer:
 
         # Start training
         for epoch in tqdm(range(num_epochs)):
-            train_loss, train_acc = self.train_epoch(
-                dataloader=train_dataloader)
+            train_loss, train_acc = self.train_epoch(dataloader=train_dataloader)
             results["train_loss"].append(train_loss)
             results["train_acc"].append(train_acc)
             # Validate only if we have a val dataloader
@@ -48,8 +47,8 @@ class Trainer:
     def train_epoch(self, dataloader):
         """Trains one epoch"""
         self.model.train()
-        total_loss = 0.
-        total_correct = 0.
+        total_loss = 0.0
+        total_correct = 0.0
         for i, batch in enumerate(dataloader):
             # Send to device
             X, y = batch
@@ -66,15 +65,14 @@ class Trainer:
 
             # Compute metrics
             total_loss += loss.detach().item()
-            total_correct += torch.sum(torch.argmax(outs,
-                                       dim=-1) == y).detach().item()
+            total_correct += torch.sum(torch.argmax(outs, dim=-1) == y).detach().item()
         total_acc = total_correct / (len(dataloader) * dataloader.batch_size)
         return total_loss, total_acc
 
     def eval_epoch(self, dataloader):
         self.model.eval()
-        total_loss = 0.
-        total_correct = 0.
+        total_loss = 0.0
+        total_correct = 0.0
         for i, batch in enumerate(dataloader):
             # Send to device
             X, y = batch
@@ -87,7 +85,6 @@ class Trainer:
 
             # Compute metrics
             total_loss += loss.detach().item()
-            total_correct += torch.sum(torch.argmax(outs,
-                                       dim=-1) == y).detach().item()
+            total_correct += torch.sum(torch.argmax(outs, dim=-1) == y).detach().item()
         total_acc = total_correct / (len(dataloader) * dataloader.batch_size)
         return total_loss, total_acc
