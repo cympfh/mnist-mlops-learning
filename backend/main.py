@@ -81,8 +81,14 @@ async def read_root():
 async def get_models_api():
     """Gets a list with model names"""
     model_list = mlflowclient.list_registered_models()
-    model_list = [model.name for model in model_list]
-    return model_list
+    names = [model.name for model in model_list]
+    return [
+        {
+            "name": name,
+            "version": mlflowclient.get_registered_model(name).latest_versions[-1].version,
+        }
+        for name in names
+    ]
 
 
 @app.post("/train")
@@ -101,9 +107,7 @@ async def train_api(data: TrainApiData, background_tasks: BackgroundTasks):
 async def predict_api(data: PredictApiData):
     """Predicts on the provided image"""
     img = data.input_image
-    model_name = data.model_name
-    # Fetch the last model in production
-    model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/Production")
+    model = mlflow.pyfunc.load_model(model_uri=f"models:/{data.model_name}/{data.model_version}")
     # Preprocess the image
     # Flatten input, create a batch of one and normalize
     img = numpy.array(img, dtype=numpy.float32).flatten()[numpy.newaxis, ...] / 255

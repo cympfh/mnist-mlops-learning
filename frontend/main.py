@@ -72,8 +72,16 @@ elif page == "Predict":
     try:
         response = requests.get(MODELS_URL)
         if response.ok:
-            model_list = response.json()
-            model_name = st.selectbox(label="Select your model", options=model_list)
+            models = response.json()
+            model_names = [model["name"] for model in models]
+            model_versions = {model["name"]: model["version"] for model in models}
+            model_name = st.selectbox(label="Select your model", options=model_names)
+            model_version = st.number_input(
+                "Version",
+                min_value=1,
+                value=model_versions[model_name],
+                max_value=model_versions[model_name],
+            )
         else:
             st.write("No models found")
     except ConnectionError as e:
@@ -109,7 +117,13 @@ elif page == "Predict":
         try:
             response_predict = requests.post(
                 url=PREDICT_URL,
-                data=json.dumps({"input_image": img.tolist(), "model_name": model_name}),
+                data=json.dumps(
+                    {
+                        "input_image": img.tolist(),
+                        "model_name": model_name,
+                        "model_version": model_version,
+                    }
+                ),
             )
             if response_predict.ok:
                 res = response_predict.json()

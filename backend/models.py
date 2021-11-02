@@ -12,6 +12,7 @@ class TrainApiData(BaseModel):
 class PredictApiData(BaseModel):
     input_image: Any
     model_name: str
+    model_version: int
 
 
 class DeleteApiData(BaseModel):
