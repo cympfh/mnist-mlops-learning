@@ -118,7 +118,7 @@ async def predict_api(data: PredictApiData):
     pred = model.predict(img)
     logger.info(pred)
     res = int(numpy.argmax(pred[0]))
-    return {"result": res}
+    return {"result": res, "prob": pred[0].tolist()}
 
 
 @app.post("/delete")

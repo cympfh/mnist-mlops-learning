@@ -163,6 +163,7 @@ elif page == "Predict":
             if response_predict.ok:
                 res = response_predict.json()
                 st.markdown(f"**Prediction**: {res['result']}")
+                st.bar_chart(res["prob"])
 
             else:
                 st.write("Some error occured")
