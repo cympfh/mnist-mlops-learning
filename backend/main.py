@@ -1,4 +1,5 @@
 import logging
+import os
 from urllib.parse import urlparse
 
 import mlflow
@@ -25,22 +26,23 @@ def train_model_task(model_name: str, hyperparams: dict, epochs: int):
 
     # Setup env
     device = set_device()
-    # Set MLflow tracking
     mlflow.set_experiment("MNIST")
+
     with mlflow.start_run() as run:
-        # Log hyperparameters
+        mlflow.set_tag("mlflow.source.name", os.uname().nodename)
         mlflow.log_params(hyperparams | {"epochs": epochs})
 
         # Prepare for training
         logger.info("Loading data...")
         train_dataloader, test_dataloader = load_mnist_data()
 
-        # Train
-        logger.info("Training model")
         if hyperparams["model_type"] == "linear":
             model = LinearModel(hyperparams).to(device)
         elif hyperparams["model_type"] == "cnn":
             model = CNN(hyperparams).to(device)
+
+        # Train
+        logger.info("Training model")
         trainer = Trainer(model, device=device)  # Default configs
         trainer.train(epochs, train_dataloader, test_dataloader, mlflow)
 
