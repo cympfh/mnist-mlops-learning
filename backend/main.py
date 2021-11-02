@@ -42,13 +42,7 @@ def train_model_task(model_name: str, hyperparams: dict, epochs: int):
         elif hyperparams["model_type"] == "cnn":
             model = CNN(hyperparams).to(device)
         trainer = Trainer(model, device=device)  # Default configs
-        history = trainer.train(epochs, train_dataloader, test_dataloader)
-
-        # Log in mlflow
-        logger.info("Logging results")
-        for metric_name, metric_values in history.items():
-            for metric_value in metric_values:
-                mlflow.log_metric(metric_name, metric_value)
+        trainer.train(epochs, train_dataloader, test_dataloader, mlflow)
 
         # Register model
         tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme

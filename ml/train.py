@@ -14,26 +14,19 @@ class Trainer:
     def get_model(self):
         return self.model
 
-    def train(self, num_epochs, train_dataloader, val_dataloader=None):
+    def train(self, num_epochs, train_dataloader, val_dataloader=None, mlflow=None):
         """Trains the model and logs the results"""
-        # Set result dict
-        results = {"train_loss": [], "train_acc": []}
-        if val_dataloader is not None:
-            results["val_loss"] = []
-            results["val_acc"] = []
-
-        # Start training
         for epoch in tqdm(range(num_epochs)):
             train_loss, train_acc = self.train_epoch(dataloader=train_dataloader)
-            results["train_loss"].append(train_loss)
-            results["train_acc"].append(train_acc)
+            if mlflow:
+                mlflow.log_metric("train_loss", train_loss, step=epoch)
+                mlflow.log_metric("train_acc", train_acc, step=epoch)
             # Validate only if we have a val dataloader
             if val_dataloader is not None:
                 val_loss, val_acc = self.eval_epoch(dataloader=val_dataloader)
-                results["val_loss"].append(val_loss)
-                results["val_acc"].append(val_acc)
-
-        return results
+                if mlflow:
+                    mlflow.log_metric("val_loss", val_loss, step=epoch)
+                    mlflow.log_metric("val_acc", val_acc, step=epoch)
 
     def train_epoch(self, dataloader):
         """Trains one epoch"""
