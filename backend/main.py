@@ -8,7 +8,7 @@ from mlflow.tracking import MlflowClient
 
 from backend.models import DeleteApiData, PredictApiData, TrainApiData
 from ml.data import load_mnist_data
-from ml.models import LinearModel
+from ml.models import CNN, LinearModel
 from ml.train import Trainer
 from ml.utils import set_device
 
@@ -37,7 +37,10 @@ def train_model_task(model_name: str, hyperparams: dict, epochs: int):
 
         # Train
         logger.info("Training model")
-        model = LinearModel(hyperparams).to(device)
+        if hyperparams["model_type"] == "linear":
+            model = LinearModel(hyperparams).to(device)
+        elif hyperparams["model_type"] == "cnn":
+            model = CNN(hyperparams).to(device)
         trainer = Trainer(model, device=device)  # Default configs
         history = trainer.train(epochs, train_dataloader, test_dataloader)
 

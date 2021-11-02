@@ -32,7 +32,13 @@ if page == "Train":
     # Conv is not provided yet
     st.session_state.model_type = st.selectbox("Model type", options=["Linear", "Conv"])
 
-    model_name = st.text_input(label="Model name", value="My Model")
+    default_name = "My Model"
+    if st.session_state.model_type == "Linear":
+        default_name = "mylinear"
+    elif st.session_state.model_type == "Conv":
+        default_name = "mycnn"
+
+    model_name = st.text_input(label="Model name", value=default_name)
 
     if st.session_state.model_type == "Linear":
         num_layers = st.select_slider(label="Number of hidden layers", options=[1, 2, 3])
@@ -47,12 +53,44 @@ if page == "Train":
             )
 
         hyperparams = {
+            "model_type": "linear",
             "input_dim": 28 * 28,
             "hidden_dims": hidden_dims,
             "output_dim": 10,
         }
 
-        epochs = st.number_input("Epochs", min_value=1, value=5, max_value=128)
+    elif st.session_state.model_type == "Conv":
+        num_layers = st.select_slider(label="Number of hidden layers", options=[1, 2, 3])
+
+        pooling = st.selectbox("Pooling Type", options=["max"])
+        channels = [64] * num_layers
+        kernels = [4] * num_layers
+
+        cols = st.columns(num_layers)
+        for i in range(num_layers):
+            channels[i] = cols[i].number_input(
+                label=f"Channel for CNN layer {i}",
+                min_value=2,
+                max_value=64,
+                value=64,
+            )
+            kernels[i] = cols[i].number_input(
+                label=f"Kernel size for CNN layer {i}",
+                min_value=2,
+                max_value=4,
+                value=4,
+            )
+
+        hyperparams = {
+            "model_type": "cnn",
+            "input_dim": [1, 28, 28],
+            "pooling": pooling,
+            "channels": channels,
+            "kernels": kernels,
+            "output_dim": 10,
+        }
+
+    epochs = st.number_input("Epochs", min_value=1, value=5, max_value=128)
 
     if st.button("Train"):
         st.write(f"{hyperparams=}")
@@ -63,9 +101,6 @@ if page == "Train":
         else:
             res = "Training task failed"
         st.write(res)
-
-    # if st.session_state.model_type == "Conv":
-    #     pass
 
 elif page == "Predict":
 

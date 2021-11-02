@@ -6,18 +6,9 @@ class Trainer:
     def __init__(self, model, optimizer=None, criterion=None, device=None):
         """Initialize the trainer"""
         self.model = model
-        if optimizer is not None:
-            self.optimizer = optimizer
-        else:
-            self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-        self.criterion = torch.nn.CrossEntropyLoss() if criterion is None else criterion
-
-        if device is None:
-            self.device = "cpu"
-        else:
-            self.device = device
-
+        self.optimizer = optimizer or torch.optim.Adam(model.parameters(), lr=0.001)
+        self.criterion = criterion or torch.nn.CrossEntropyLoss()
+        self.device = device or "cpu"
         self.model = self.model.to(device)
 
     def get_model(self):
