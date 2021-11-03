@@ -5,6 +5,7 @@ import urllib
 import cv2
 import requests
 import streamlit as st
+import utils
 from streamlit_drawable_canvas import st_canvas
 
 # Configs
@@ -17,6 +18,7 @@ else:
     BACKEND_URL = "http://localhost:8000"
 
 MODELS_URL = urllib.parse.urljoin(BACKEND_URL, "models")
+MODEL_URL = urllib.parse.urljoin(BACKEND_URL, "model")
 TRAIN_URL = urllib.parse.urljoin(BACKEND_URL, "train")
 PREDICT_URL = urllib.parse.urljoin(BACKEND_URL, "predict")
 DELETE_URL = urllib.parse.urljoin(BACKEND_URL, "delete")
@@ -29,13 +31,12 @@ st.sidebar.markdown("---")
 st.sidebar.write("https://github.com/zademn")
 
 if page == "Train":
-    # Conv is not provided yet
-    st.session_state.model_type = st.selectbox("Model type", options=["Linear", "Conv"])
+    st.session_state.model_type = st.selectbox("Model type", options=["Linear", "CNN"])
 
     default_name = "My Model"
     if st.session_state.model_type == "Linear":
         default_name = "mylinear"
-    elif st.session_state.model_type == "Conv":
+    elif st.session_state.model_type == "CNN":
         default_name = "mycnn"
 
     model_name = st.text_input(label="Model name", value=default_name)
@@ -59,7 +60,7 @@ if page == "Train":
             "output_dim": 10,
         }
 
-    elif st.session_state.model_type == "Conv":
+    elif st.session_state.model_type == "CNN":
         num_layers = st.select_slider(label="Number of hidden layers", options=[1, 2, 3])
 
         pooling = st.selectbox("Pooling Type", options=["max"])
@@ -93,9 +94,10 @@ if page == "Train":
     epochs = st.number_input("Epochs", min_value=1, value=5, max_value=128)
 
     if st.button("Train"):
-        st.write(f"{hyperparams=}")
         to_post = {"model_name": model_name, "hyperparams": hyperparams, "epochs": epochs}
         response = requests.post(url=TRAIN_URL, data=json.dumps(to_post))
+        st.write("Posting")
+        st.json(to_post)
         if response.ok:
             res = response.json()["result"]
         else:
@@ -119,6 +121,21 @@ elif page == "Predict":
             )
         else:
             st.write("No models found")
+    except ConnectionError as e:
+        st.write("Couldn't reach backend")
+
+    try:
+        response = requests.get(MODEL_URL, {"name": model_name, "version": model_version})
+        assert response.ok, "Bad Request"
+        model_info = response.json()
+        utils.table(
+            {name: model_info[name] for name in ("status", "status_message", "run_id")},
+            title="run",
+        )
+        utils.table(model_info["params"], title="hyperparams")
+        utils.metrics(model_info["metrics"])
+    except AssertionError as e:
+        st.write(f"Bad Request: {e}")
     except ConnectionError as e:
         st.write("Couldn't reach backend")
 

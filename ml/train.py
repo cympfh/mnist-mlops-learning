@@ -15,8 +15,11 @@ class Trainer:
         return self.model
 
     def train(self, num_epochs, train_dataloader, val_dataloader=None, mlflow=None):
-        """Trains the model and logs the results"""
-        for epoch in tqdm(range(num_epochs)):
+        """Trains the model and logs the results
+
+        Epoch (or step) is indexed by 1.
+        """
+        for epoch in tqdm(range(1, num_epochs + 1)):
             train_loss, train_acc = self.train_epoch(dataloader=train_dataloader)
             if mlflow:
                 mlflow.log_metric("train_loss", train_loss, step=epoch)

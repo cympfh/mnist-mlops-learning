@@ -54,12 +54,12 @@ def train_model_task(model_name: str, hyperparams: dict, epochs: int):
         if tracking_url_type_store != "file":
             mlflow.pytorch.log_model(
                 model,
-                "LinearModel",
+                "torchnn",
                 registered_model_name=model_name,
                 conda_env=mlflow.pytorch.get_default_conda_env(),
             )
         else:
-            mlflow.pytorch.log_model(model, "LinearModel-MNIST", registered_model_name=model_name)
+            mlflow.pytorch.log_model(model, "torchnn", registered_model_name=model_name)
 
         # Take last model version
         mv = mlflowclient.search_model_versions(f"name='{model_name}'")[-1]
@@ -88,6 +88,20 @@ async def get_models_api():
         }
         for name in names
     ]
+
+
+@app.get("/model")
+async def get_model_api(name: str, version: int):
+    """Get a model spec"""
+    model_version = mlflowclient.get_model_version(name, version)
+    run = mlflowclient.get_run(model_version.run_id)
+    return {
+        "status": model_version.status,
+        "status_message": model_version.status_message,
+        "run_id": model_version.run_id,
+        "params": run.data.params,
+        "metrics": run.data.metrics,
+    }
 
 
 @app.post("/train")

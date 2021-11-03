@@ -1,6 +1,6 @@
 # uvicorn backend
 backend:
-    uvicorn --host 0.0.0.0 --reload --reload-dir backend backend.main:app
+    uvicorn --host 0.0.0.0 --reload --reload-dir backend --reload-dir ml backend.main:app
 
 # streamlit frontend
 frontend:
